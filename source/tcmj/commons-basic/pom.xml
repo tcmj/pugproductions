@@ -5,12 +5,12 @@
     <parent>
         <groupId>com.tcmj</groupId>
         <artifactId>tcmj-parent</artifactId>
-        <version>21601</version>
+        <version>216.1</version>
     </parent>
 
     <groupId>com.tcmj.common</groupId>
     <artifactId>commons-basic</artifactId>
-    
+
 
     <packaging>jar</packaging>
 
@@ -22,7 +22,7 @@
         Some Ideas/Todos:
         - Extend Application class and create a dummy manifest if none was available.
     </description>
-    
+
 
     <dependencies>
         <dependency>
