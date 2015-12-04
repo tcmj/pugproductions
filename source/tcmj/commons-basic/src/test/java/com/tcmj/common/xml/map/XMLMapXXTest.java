@@ -32,7 +32,7 @@ public class XMLMapXXTest {
     }
 
 
-    @Test
+    // @Test
     public void testXMLEntrypointReading() throws Exception {
         LOG.info("testXMLEntrypoint");
         File testdatapath = new File("D:\\development\\MANTURBO\\MANT_PESAPDCC_V10\\com.inteco.man.turbo\\man-turbo-document-released_service\\conf\\loggingService.xml");
