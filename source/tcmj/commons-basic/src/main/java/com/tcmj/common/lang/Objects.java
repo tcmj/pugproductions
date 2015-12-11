@@ -97,6 +97,24 @@ public class Objects {
     }
 
     /**
+     * Checks that a integer is positive and throws a IllegalArgumentException with a custom message if not.
+     * <p>The message strings can be formatted using the {@link org.slf4j.helpers.MessageFormatter} patterns</p>
+     * <pre>
+     *    int amount = nonZero(parameter, "Parameter 'amount' must be positive!");
+     * </pre>
+     * @param number the integer number to check
+     * @param msg a custom message used in the exception text
+     * @param params value objects to be placed into the message (placeholder: '{}')
+     * @return passes through the instance in order to do the assignment in the same line
+     */
+    public static int nonZero(int number, String msg, Object... params) {
+        if (number <= 0) {
+            throw new IllegalArgumentException(format(msg, params));
+        }
+        return number;
+    }
+
+    /**
      * Ensures that a {@link String} has to be <b>not</b>
      * <li>null</li>
      * <li>empty ("")</li>

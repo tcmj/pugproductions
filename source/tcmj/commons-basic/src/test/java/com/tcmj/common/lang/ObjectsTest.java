@@ -86,6 +86,19 @@ public class ObjectsTest {
         Objects.ensure(condition, msg, params);
     }
 
+    @Test
+    public void testNonZero() {
+        int parameter = 42;
+        int myValue = Objects.nonZero(parameter, "Oh no you cannot use {} as value!", parameter);
+        assertThat("everything is 42", myValue, is(42));
+    }
+
+    @Test(expected = java.lang.IllegalArgumentException.class)
+    public void testNonZeroException() {
+        int parameter = 0;
+        Objects.nonZero(parameter, "Oh no you cannot use {} as value!", parameter);
+    }
+
     /**
      * Test of notBlank method, of class Objects.
      */
