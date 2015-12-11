@@ -34,7 +34,7 @@ import static com.tcmj.common.crypto.AES.Defaults.KEY_SIZE_128_BITS;
  * <li>BlockSize: 128 Bit fixed</li>
  * <li>Structure: Substitution-permutation network</li></ul>
  * <a href="https://en.wikipedia.org/wiki/Advanced_Encryption_Standard">AES on Wikipedia</a>
- * <p/>
+ * <p>
  * <b>Summary</b>
  * <ul>
  * <li>Encoding can be applied to any couple of bytes (e.g. text or file).</li>
@@ -44,99 +44,69 @@ import static com.tcmj.common.crypto.AES.Defaults.KEY_SIZE_128_BITS;
  * <li>There's a unofficial way to get over the key size limitation by using {@link Crypto#removeCryptographyRestrictions()}</li>
  * <li>The key will be created using a password and a salt and a predefined number of iterations</li>
  * <li>Encryption also needs a so called initialisation vector (IV)</li>
- * <li>The IV will be created randomly or you can set it as a parameter on the encrypt method</li>
+ * <li>The IV will be created randomly or you can set it as a parameter on the encryptAndMerge method</li>
  * <li>The result of encryption is a byte array consisting of the salt, iv and the cipherbytes</li>
  * <li>The recipient needs to know the password, the salt, the amount of iterations, the IV and of course the encrypted bytes</li>
  * <li>The recipient generates the key in exactly the same way using the same password, salt and iteration amount</li>
  * </ul>
  * Have a look on the JUnit test for detailed examples to use this class.
  * @author tcmj - Thomas Deutsch
- * @since 2.15.08
+ * @since 2.15.8
  */
 public class AES {
 
-    /** Default values which can be used to change AES encryption. */
-    static class Defaults {
-        /** Amount of iterations used for key generation. */
-        public static final int DEFAULT_ITERATIONS = 65536;
-        /** Length of the Salt to be used in bytes. 16 bytes = 128 bit */
-        public static final int DEFAULT_SALT_SIZE = 16;
-        /** Constat value for a 16 byte - 128 bit AES key. */
-        public static final int KEY_SIZE_128_BITS = 128;
-        /** Constat value for a 24 byte - 192 bit AES key. */
-        public static final int KEY_SIZE_192_BITS = 192;
-        /** Constat value for a 32 byte - 256 bit AES key. */
-        public static final int KEY_SIZE_256_BITS = 256;
-    }
-
     /** slf4j Logging Framework. */
     private static final Logger LOG = LoggerFactory.getLogger(AES.class);
-
     /** Cipher transformation : AES */
     private static final String CIPHER_TRANSFORM_AES = "AES";
-
-    /** AES specification: Cipher Block Chaining Mode (CBC), Padding needed beause of fixed block length */
+    /** AES specification: Cipher Block Chaining Mode (CBC), Padding needed because of fixed block length */
     private static final String CIPHER_SPEC = "AES/CBC/PKCS5Padding";
-
     /** Key derivation specification - changing will break existing streams! */
     private static final String KEYGEN_SPEC = "PBKDF2WithHmacSHA512";
-
     /** Random number algorithm used by the generate Salt and IV methods. */
     private static final String RND_NUM_ALGORITHM = "SHA1PRNG";
-
     /** Length of the Initialization Vector in bytes. 16 bytes = 128 bit. FIXED for AES! */
     private static final int FIXED_AES_BLOCK_SIZE = 16;
-
-
     /** Key factory used to create key specification objects. */
     private final SecretKeyFactory factory;
-
     /** Main object used for en- and decoding. */
     private final Cipher cipher;
-
     /** Must be 128, 192 or 256 Bit! */
     private final int keySize;
-
     /** We need the salt size for our concatenations! */
     private final int saltSize;
-
     /** Iterations used to generate the key! */
     private int pwdIterations;
 
-
-    /** The AES key size. Valid values are 128, 192 or 256 bits. */
-    public int getKeySize() {
-        return keySize;
-    }
-    /** Salt size in Bytes.*/
-    public int getSaltSize() {
-        return saltSize;
-    }
-
-
     /**
-     * AES with {@link Defaults#KEY_SIZE_128_BITS} bit key size
-     * using {@link Defaults#DEFAULT_ITERATIONS} password iterations.
+     * Default constructor for AES with {@link Defaults#KEY_SIZE_128_BITS} bit key size
+     * using {@link Defaults#DEFAULT_ITERATIONS} password iterations and a default salt
+     * size of {@link Defaults#DEFAULT_SALT_SIZE}
      */
     public AES() throws NoSuchAlgorithmException, NoSuchPaddingException {
         this(KEY_SIZE_128_BITS, DEFAULT_SALT_SIZE, DEFAULT_ITERATIONS);
     }
 
+
     /**
-     * Constructor with...
-     * @param keySize must be {@link Defaults#KEY_SIZE_128_BITS}, {@link Defaults#KEY_SIZE_192_BITS} or {@link Defaults#KEY_SIZE_256_BITS}
+     * Constructor for AES where you can define custom values.
+     * @param keySize must be one of {@link Defaults#KEY_SIZE_128_BITS}, {@link Defaults#KEY_SIZE_192_BITS} or {@link Defaults#KEY_SIZE_256_BITS}
+     * @param saltSize a common salt size is 16 (bytes)
+     * @param passIterations the password iterations used by the AES algorithm. A high value decreases performance.
      */
     public AES(final int keySize, final int saltSize, final int passIterations) throws NoSuchAlgorithmException, NoSuchPaddingException {
-        Objects.ensure(keySize == 128 || keySize == 192 || keySize == 256, "KeySize must be 128, 192 or 256 (bits)");
+        Objects.ensure(keySize == 128 || keySize == 192 || keySize == 256, "AES key size must be 128, 192 or 256 (bits)");
         this.keySize = keySize;
-        this.saltSize = saltSize;
-        this.pwdIterations = Objects.notNull(passIterations, "Password iterations be one of {}", keySize);
+        this.saltSize = Objects.nonZero(saltSize, "Salt size must be > 0 (bytes)!");
+        this.pwdIterations = Objects.nonZero(passIterations, "Password iterations must be > 0!");
         factory = SecretKeyFactory.getInstance(KEYGEN_SPEC);
         cipher = Cipher.getInstance(CIPHER_SPEC);
     }
 
-
-    /** Check the actually allowed key size for AES depending on the installed jurisdiction policy files (JCE). */
+    /**
+     * Checks the java installation for the actually allowed key size for AES depending on the installed jurisdiction policy files (JCE).
+     * @param sizeToCheck should be one of the allowed AES key bit sizes {@link Defaults#KEY_SIZE_128_BITS}, {@link Defaults#KEY_SIZE_192_BITS} or {@link Defaults#KEY_SIZE_256_BITS}
+     */
     public static boolean isKeySizeAllowed(int sizeToCheck) {
         try {
             Objects.ensure(sizeToCheck == 128 || sizeToCheck == 192 || sizeToCheck == 256, "KeySize must be 128, 192 or 256 (bits)");
@@ -144,7 +114,7 @@ public class AES {
             LOG.debug("The max allowed key length for {} is {}!", CIPHER_TRANSFORM_AES, maxKeyLen);
             return sizeToCheck <= maxKeyLen;
         } catch (IllegalStateException ise) {
-            LOG.debug("Invalid keysize '{}'! {}", sizeToCheck, ise.getMessage());
+            LOG.debug("Invalid key size '{}' ({})!", sizeToCheck, ise.getMessage());
             return false;
         } catch (NoSuchAlgorithmException e) {
             LOG.debug("Cannot determine max allowed key length because of missing provider for '{}'!", CIPHER_TRANSFORM_AES);
@@ -152,20 +122,11 @@ public class AES {
         }
     }
 
-
     /**
-     * Generate a new pseudorandom salt of the specified length (bytes) using SecureRandom and SHA1PRNG.
-     * <p>The length of the salt is 16 bytes (128 bit) - size should be same as block size <p/>
-     */
-    public byte[] generateSalt() throws NoSuchAlgorithmException {
-        byte[] salt = new byte[getSaltSize()];
-        SecureRandom.getInstance(RND_NUM_ALGORITHM).nextBytes(salt);
-        return salt;
-    }
-
-    /**
-     * Generate a new pseudorandom salt of the specified length (bytes) using SecureRandom and SHA1PRNG.
-     * <p>The length of the salt is 16 bytes (128 bit) - size should be same as block size <p/>
+     * Generates a new pseudorandom salt of the specified length (bytes) using {@link SecureRandom} and SHA1PRNG.
+     * <p>The length of the salt size should be same as block size <p/>
+     * @param sizeInBytes salt size in bytes (a common value for AES is 16)
+     * @return a random salt in the given size
      */
     public static byte[] generateSalt(int sizeInBytes) throws NoSuchAlgorithmException {
         byte[] salt = new byte[sizeInBytes];
@@ -173,95 +134,19 @@ public class AES {
         return salt;
     }
 
-    /** Generate a new pseudorandom initialisation vector in block size length (16 bytes / 128 bits) using SecureRandom and SHA1PRNG. */
+    /**
+     * Generate a new pseudorandom initialisation vector in block size length (16 bytes / 128 bits) using {@link SecureRandom} and SHA1PRNG.
+     * @return a Iv parameter spec object containing random generated 16 bytes
+     */
     public static IvParameterSpec generateIV() throws NoSuchAlgorithmException {
         byte[] iv = new byte[FIXED_AES_BLOCK_SIZE];
         SecureRandom.getInstance(RND_NUM_ALGORITHM).nextBytes(iv);
         return new IvParameterSpec(iv);
     }
 
-    /** Generates a AES key in the wanted size, using a given password and salt and the default amount of password iterations. */
-    public SecretKey generateKey(char[] password, byte[] salt) throws NoSuchAlgorithmException, InvalidKeySpecException, NoSuchPaddingException {
-        return generateKey(password, salt, getPwdIterations());
-    }
-
     /**
-     * Generates a AES key in the wanted size, using a given password and salt and the specified amount of iterations.
-     * <p>Watch out because this method can become a bottleneck! Tunning can be done e.g. by decreasing iterations</p>
-     */
-    public SecretKey generateKey(char[] password, byte[] salt, int iterations) throws NoSuchAlgorithmException, InvalidKeySpecException, NoSuchPaddingException {
-
-        Objects.notNull(password, "Password not set for key generation!");
-        Objects.notNull(salt, "Salt not set for key generation!");
-
-        //Generating 128/192/256-bit key using 16-byte salt doing n iterations
-        KeySpec spec = new PBEKeySpec(password, salt, iterations, getKeySize());
-
-        byte[] keyBytes = factory.generateSecret(spec).getEncoded();
-        SecretKey secretKey = new SecretKeySpec(keyBytes, CIPHER_TRANSFORM_AES);
-
-        return secretKey;
-    }
-
-    public byte[] getInitialisationVector(Cipher cipher) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, InvalidParameterSpecException {
-        AlgorithmParameters params = cipher.getParameters();
-        return params.getParameterSpec(IvParameterSpec.class).getIV();
-    }
-
-    /* Decrypt the message, given derived key and initialization vector. */
-    public byte[] decryptConcatedData(char[] password, byte[] concatedData) throws Exception {
-        byte[] salt = extractSalt(concatedData);
-        byte[] iv = extractIV(concatedData);
-        byte[] data = extractEncryptedData(concatedData);
-        return decrypt(password, salt, iv, data);
-    }
-
-    public byte[] decrypt(char[] password, byte[] salt, byte[] iv, byte[] ciphertext) throws Exception {
-        SecretKey key = generateKey(password, salt);
-        return decrypt(key, iv, ciphertext);
-    }
-
-    public byte[] decrypt(SecretKey key, byte[] iv, byte[] ciphertext) throws Exception {
-        cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(iv));
-        byte[] decrypted = cipher.doFinal(ciphertext);
-        return decrypted;
-    }
-
-
-    /**
-     * Encrypts data using the given key and salt.
-     * <p/>
-     * Fastest way to encrypt data!
-     */
-    public byte[] encrypt(SecretKey key, byte[] salt, byte[] plain) throws Exception {
-
-        cipher.init(Cipher.ENCRYPT_MODE, key);
-
-        byte[] iv = getInitialisationVector(cipher);
-
-        byte[] encrypted = cipher.doFinal(plain);
-
-        //put all things together
-        byte[] concated = concat(salt, iv, encrypted);
-
-        return concated;
-    }
-
-    public byte[] encrypt(SecretKey key, byte[] salt, IvParameterSpec iv, byte[] plain) throws Exception {
-
-        //the iv byte array must be wrapped in an IvParameterSpec object: new IvParameterSpec(iv);
-        cipher.init(Cipher.ENCRYPT_MODE, key, iv);
-
-        byte[] encrypted = cipher.doFinal(plain);
-
-        //put all things together
-        byte[] concated = concat(salt, iv.getIV(), encrypted);
-
-        return concated;
-    }
-
-    /**
-     * Encrypts a stream of data. The encrypted stream consists of
+     * Encrypts a stream of data with AES 128 bit.
+     * The encrypted stream consists of
      * [16byte salt] + [16 byte IV] + [n byte cipherdata]
      * a header followed by the raw AES data. The header is broken down as follows:<br/>
      * <ul>
@@ -271,22 +156,17 @@ public class AES {
      * <li><b>IV</b>: pseudorandom AES initialization vector (16 bytes)</li>
      * </ul>
      * @param password password to use for encryption
-     * @param input an arbitrary byte stream to encrypt
+     * @param input an arbitrary byte stream to encryptAndMerge
      * @param output stream to which encrypted data will be written
-     * @todo keyLength key length to use for AES encryption (must be 128, 192, or 256)
      */
     public static void encryptStream(char[] password, InputStream input, OutputStream output) throws Exception {
-
         AES pbe = new AES(KEY_SIZE_128_BITS, DEFAULT_SALT_SIZE, DEFAULT_ITERATIONS);
         byte[] salt = pbe.generateSalt();
         SecretKey key = pbe.generateKey(password, salt);
-
         output.write(salt);
-
         pbe.cipher.init(Cipher.ENCRYPT_MODE, key); //we want a new IV
-        output.write(pbe.getInitialisationVector(pbe.cipher)); //write IV
-
-        // read data from input into buffer, encrypt and write to output
+        output.write(pbe.getInitialisationVector()); //write IV
+        // read data from input into buffer, encryptAndMerge and write to output
         byte[] buffer = new byte[1024];
         int numRead;
         byte[] encrypted = null;
@@ -300,31 +180,23 @@ public class AES {
         if (data != null) {
             output.write(data);
         }
-
-
     }
 
     /**
-     * ATM only 16 byte salts supported!
-     * @param password
-     * @param input
-     * @param output
-     * @throws Exception
+     * Decryption method for streams previously encrypted by {@link #encryptStream(char[], InputStream, OutputStream)}
+     * @param password the same password used by the encryption
+     * @param input the input data as stream object
+     * @param output the output data as stream object
+     * @throws Exception any
      */
     public static void decryptStream(char[] password, InputStream input, OutputStream output) throws Exception {
-
         byte[] salt = new byte[DEFAULT_SALT_SIZE];
         input.read(salt);
-
         AES pbe = new AES(KEY_SIZE_128_BITS, DEFAULT_SALT_SIZE, DEFAULT_ITERATIONS);
-
         SecretKey key = pbe.generateKey(password, salt);
-
         byte[] iv = new byte[FIXED_AES_BLOCK_SIZE]; // 16-byte I.V. regardless of key size
         input.read(iv);
-
         pbe.cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(iv));
-
         // read data from input into buffer, decrypt and write to output
         byte[] buffer = new byte[1024];
         int numRead;
@@ -335,25 +207,10 @@ public class AES {
                 output.write(decrypted);
             }
         }
-
         decrypted = pbe.cipher.doFinal();
-
         if (decrypted != null) {
             output.write(decrypted);
         }
-
-
-    }
-
-    private byte[] concat(byte[] salt, byte[] iv, byte[] encrypted) {
-        byte[] concated = new byte[salt.length + iv.length + encrypted.length];
-        int pos = 0;
-        System.arraycopy(salt, 0, concated, pos, salt.length); //copy the salt in the new array
-        pos += salt.length;
-        System.arraycopy(iv, 0, concated, pos, iv.length); //copy the iv in the new array
-        pos += iv.length;
-        System.arraycopy(encrypted, 0, concated, pos, encrypted.length); //copy the ciphertext in the new array
-        return concated;
     }
 
     /**
@@ -364,43 +221,228 @@ public class AES {
     public static String encrypt2Base64(char[] password, byte[] toEncrpyt) throws Exception {
         AES pbe = new AES();
         byte[] salt = pbe.generateSalt();
-        SecretKey crypKey = pbe.generateKey(password, salt);
-        byte[] encrypted = pbe.encrypt(crypKey, salt, toEncrpyt);
+        SecretKey cryptKey = pbe.generateKey(password, salt);
+        byte[] encrypted = pbe.encryptAndMerge(cryptKey, salt, toEncrpyt);
         return Crypto.Base64.encode2String(encrypted);
     }
 
     /**
-     * Decrypts a base64 encoded string containing a aes ciphertext
-     * @param ciphertext salt + iv + encoded data
+     * Decrypts a base64 encoded string which was encrypted by {@link #encrypt2Base64(char[], byte[])}
+     * @param ciphertext salt + iv + encoded data returned by {@link #encrypt2Base64(char[], byte[])}
      * @return plain text as utf-8 string
      */
-    public   String decryptBase64(char[] password, String ciphertext) throws Exception {
-        byte[] cipherbytes = Crypto.Base64.decode(ciphertext);
-        byte[] decryptData = decrypt(password, cipherbytes);
+    public static String decryptBase64(char[] password, String ciphertext) throws Exception {
+        AES pbe = new AES();
+        byte[] cipherBytes = Crypto.Base64.decode(ciphertext);
+        byte[] decryptData = pbe.decryptMergedData(password, cipherBytes);
         return new String(decryptData, "UTF-8");
     }
 
-    public byte[] decrypt(char[] password, byte[] cipherbytes) throws Exception {
-        byte[] salt = extractSalt(cipherbytes);
-        byte[] iv = extractIV(cipherbytes);
-        byte[] encdata = extractEncryptedData(cipherbytes);
-        return decrypt(password, salt, iv, encdata);
+    /** The AES key size. Valid values are 128, 192 or 256 bits. */
+    public int getKeySize() {
+        return keySize;
     }
 
-    /** Extract the salt from an byte array. */
+    /** Salt size in Bytes. */
+    public int getSaltSize() {
+        return saltSize;
+    }
+
+    /** Initialisation vector size in Bytes. */
+    public int getIVSize() {
+        return FIXED_AES_BLOCK_SIZE;
+    }
+
+    /**
+     * Generates a new pseudorandom salt of the specified length (bytes) using {@link SecureRandom} and the 'SHA1PRNG' algorithm.
+     * The salt length is specified by the custom constructor or 16 bytes by using the default constructor!
+     * <p>The length of the salt size should be same as block size <p/>
+     * @return a random salt usually 16 bytes (if not customized)
+     */
+    public byte[] generateSalt() throws NoSuchAlgorithmException {
+        byte[] salt = new byte[getSaltSize()];
+        SecureRandom.getInstance(RND_NUM_ALGORITHM).nextBytes(salt);
+        return salt;
+    }
+
+    /**
+     * Generates a AES key in the wanted size, using a given password and salt and the default amount of password iterations.
+     * This method uses the either the default password iterations or the custom password iterations retrieved by {@link #getPwdIterations()}
+     * @param password the password characters used for the key
+     * @param salt the salt bytes used for the key
+     * @return a java key object needed for AES encryption and decryption
+     */
+    public SecretKey generateKey(char[] password, byte[] salt) throws NoSuchAlgorithmException, InvalidKeySpecException, NoSuchPaddingException {
+        return generateKey(password, salt, getPwdIterations());
+    }
+
+    /**
+     * Generates a AES key in the wanted size, using a given password and salt and the specified amount of iterations.
+     * <p>Watch out because this method can become a bottleneck! Tuning can be done e.g. by decreasing iterations</p>
+     * @param password the password characters used for the key
+     * @param salt the salt bytes used for the key
+     * @param iterations the amount of iterations which will be applied to the key
+     * @return a java key object needed for AES encryption and decryption
+     */
+    public SecretKey generateKey(char[] password, byte[] salt, int iterations) throws NoSuchAlgorithmException, InvalidKeySpecException, NoSuchPaddingException {
+        Objects.notNull(password, "Parameter 'password' may not be null!");
+        Objects.notNull(salt, "Parameter 'salt' may not be null!");
+        Objects.ensure(salt.length == getSaltSize(), "AES object has been set to a salt size of {}! Your salt size ({}) does not match!", getSaltSize(), salt.length);
+        //Generating 128/192/256-bit key using 16-byte salt doing n iterations
+        KeySpec spec = new PBEKeySpec(password, salt, iterations, getKeySize());
+        byte[] keyBytes = factory.generateSecret(spec).getEncoded();
+        SecretKey secretKey = new SecretKeySpec(keyBytes, CIPHER_TRANSFORM_AES);
+        return secretKey;
+    }
+
+    /**
+     * Retrieves the initialisation vector from the cipher object.
+     * @return params.getParameterSpec(IvParameterSpec.class).getIV();
+     */
+    public byte[] getInitialisationVector() throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, InvalidParameterSpecException {
+        if (cipher.getIV() != null) {
+            return cipher.getIV(); //this does only work if a encryption has been done!
+        } else {
+            AlgorithmParameters params = cipher.getParameters();
+            return params.getParameterSpec(IvParameterSpec.class).getIV();
+        }
+    }
+
+    /**
+     * Decrypts merged data which means cipher data must be Salt+IV+Data.
+     * @param password must be the same password as used by the encryption
+     * @param concatenatedData must be the encrypted data (Salt+IV+Data) usually created by {@link #encryptAndMerge(SecretKey, byte[], byte[])}
+     * @return the plain data which can be used to create a new {@link String} object in case of text data
+     * @throws Exception any
+     */
+    public byte[] decryptMergedData(char[] password, byte[] concatenatedData) throws Exception {
+        byte[] salt = extractSalt(concatenatedData);
+        byte[] iv = extractIV(concatenatedData);
+        byte[] data = extractEncryptedData(concatenatedData);
+        return decrypt(password, salt, iv, data);
+    }
+
+    /**
+     * AES decryption where the key will be created using the following parameters. For performance reasons you
+     * should create the key only once and pass it to {@link #decrypt(SecretKey, byte[], byte[])}
+     * @param password the password used to generate the AES key
+     * @param salt the salt bytes used to generate the AES key
+     * @param iv the initialisation vector used to initialise the cipher object
+     * @param cipherdata the data to be decrypted (can be text or any byte data)
+     * @return the decrypted byte data (if it is a text you have to pass the bytes to a new {@link String} object
+     * @throws Exception any
+     */
+    public byte[] decrypt(char[] password, byte[] salt, byte[] iv, byte[] cipherdata) throws Exception {
+        SecretKey key = generateKey(password, salt);
+        return decrypt(key, iv, cipherdata);
+    }
+
+    /**
+     * AES decryption where a previously generated key can be passed in. For performance reasons the key should be created only once
+     * @param key the secret key - eg. by using {@link #generateKey(char[], byte[])}
+     * @param iv must be the same initialisation vector as used by the encryption - eg. created with {@link #generateIV()}
+     * @param cipherdata the data to be decrypted (can be text or any byte data)
+     * @return the decrypted byte data (if it is a text you have to pass the bytes to a new {@link String} object
+     * @throws Exception any
+     */
+    public byte[] decrypt(SecretKey key, byte[] iv, byte[] cipherdata) throws Exception {
+        cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(iv));
+        byte[] decrypted = cipher.doFinal(cipherdata);
+        return decrypted;
+    }
+
+    /**
+     * Encrypts data using the given key and salt and merges salt + iv + cipherdata.
+     * Fastest way to encryptAndMerge mass data if the same key is used.
+     * @param key the secret key - eg. created by {@link #generateKey(char[], byte[])}
+     * @param salt the salt - eg. created by {@link #generateSalt()}
+     * @param plain the data to be encrypted - can be text or anything else!
+     * @return the encrypted data where salt + iv + encrypted data has been merged together
+     * @throws Exception any
+     */
+    public byte[] encryptAndMerge(SecretKey key, byte[] salt, byte[] plain) throws Exception {
+//        cipher.init(Cipher.ENCRYPT_MODE, key);
+//        byte[] iv = getInitialisationVector();
+//        byte[] encrypted = cipher.doFinal(plain);
+//        return concat(salt, iv, encrypted);
+
+        IvParameterSpec iv = generateIV();
+        return concat(salt, iv.getIV(), encrypt(key, iv, plain));
+    }
+
+    /**
+     * Encrypts data using the given key and a custom initialisation vector.
+     * Fastest way to encrypt mass data if the same key can be used.
+     * @param key the secret key - eg. created by {@link #generateKey(char[], byte[])}
+     * @param iv the initialisation vector as a IvParameterSpec object - length must be 16 bytes!
+     *           for performance reasons there is no check for the correctness of the IV (eg. length)
+     * @param plain the data to be encrypted - can be text or anything else!
+     * @return the encrypted data (salt + iv + encrypted data)
+     * @throws Exception any
+     */
+    public byte[] encrypt(SecretKey key, IvParameterSpec iv, byte[] plain) throws Exception {
+        cipher.init(Cipher.ENCRYPT_MODE, key, iv);
+        return cipher.doFinal(plain);
+    }
+
+    /**
+     * Encrypts data using the given key and salt and a custom initialisation vector and merges salt + iv + cipherdata.
+     * Fastest way to encryptAndMerge mass data if the same key is used.
+     * @param key the secret key - eg. created by {@link #generateKey(char[], byte[])}
+     * @param salt the salt - eg. created by {@link #generateSalt()}
+     * @param iv the initialisation vector as a IvParameterSpec object - length must be 16 bytes
+     * @param plain the data to be encrypted - can be text or anything else!
+     * @return the encrypted data (salt + iv + encrypted data)
+     * @throws Exception any
+     */
+    public byte[] encryptAndMerge(SecretKey key, byte[] salt, IvParameterSpec iv, byte[] plain) throws Exception {
+        return concat(salt, iv.getIV(), encrypt(key, iv, plain)); //merge salt + iv + data
+    }
+
+    /**
+     * Merges the salt and initialisation vector and the encrypted data
+     * @param salt can be of any length
+     * @param iv must be of length {@link #FIXED_AES_BLOCK_SIZE}
+     * @param encrypted any encrypted data
+     * @return Salt + IV + Encrypted Data
+     */
+    private byte[] concat(byte[] salt, byte[] iv, byte[] encrypted) {
+        byte[] concatenated = new byte[salt.length + iv.length + encrypted.length];
+        int pos = 0;
+        System.arraycopy(salt, 0, concatenated, pos, salt.length); //copy the salt in the new array
+        pos += salt.length;
+        System.arraycopy(iv, 0, concatenated, pos, iv.length); //copy the iv in the new array
+        pos += iv.length;
+        System.arraycopy(encrypted, 0, concatenated, pos, encrypted.length); //copy the ciphertext in the new array
+        return concatenated;
+    }
+
+    /** Extracts the salt from a merged byte array.
+     * @param encrypted merged data - must be Salt(size will be retrieved by {@link #getSaltSize()} + IV + Data
+     * @return the raw salt bytes
+     */
     public byte[] extractSalt(byte[] encrypted) {
         byte[] salt = new byte[getSaltSize()];
         System.arraycopy(encrypted, 0, salt, 0, getSaltSize());
         return salt;
     }
 
-    /** Extract the initialization vector from an byte array. */
+    /**
+     * Extract the initialization vector from a merged byte array.
+     * @param encrypted merged data - must be Salt(size will be retrieved by {@link #getSaltSize()} + IV + Data
+     * @return the raw initialisation vector bytes
+     */
     public byte[] extractIV(byte[] encrypted) {
         byte[] iv = new byte[FIXED_AES_BLOCK_SIZE];
         System.arraycopy(encrypted, getSaltSize(), iv, 0, FIXED_AES_BLOCK_SIZE);
         return iv;
     }
 
+    /**
+     * Extracts the raw encrypted data from a merged byte array.
+     * @param encrypted merged data - must be Salt(size will be retrieved by {@link #getSaltSize()} + IV + Data
+     * @return the raw AES encrypted data
+     */
     public byte[] extractEncryptedData(byte[] encrypted) {
         int length = encrypted.length - getSaltSize() - FIXED_AES_BLOCK_SIZE;
         byte[] data = new byte[encrypted.length - getSaltSize() - FIXED_AES_BLOCK_SIZE];
@@ -408,12 +450,12 @@ public class AES {
         return data;
     }
 
-    /** Getter for the amount of iterations used by {@link #generateKey(char[], byte[])} */
+    /** Getter for the amount of password iterations used by {@link #generateKey(char[], byte[])} */
     public int getPwdIterations() {
         return pwdIterations;
     }
 
-    /** Setter for the amount of iterations used by {@link #generateKey(char[], byte[])} */
+    /** Setter for the amount of password iterations used by {@link #generateKey(char[], byte[])} */
     public void setPwdIterations(int pwdIterations) {
         this.pwdIterations = pwdIterations;
     }
@@ -425,5 +467,19 @@ public class AES {
     @Override
     public String toString() {
         return CIPHER_SPEC + "/" + keySize + "Bit/" + KEYGEN_SPEC + "/" + pwdIterations + "@" + Integer.toHexString(hashCode());
+    }
+
+    /** Default values which can be used to change AES encryption. */
+    public static class Defaults {
+        /** Amount of iterations used for key generation. */
+        public static final int DEFAULT_ITERATIONS = 65536;
+        /** Length of the Salt to be used in bytes. 16 bytes = 128 bit */
+        public static final int DEFAULT_SALT_SIZE = 16;
+        /** Constant value for a 16 byte - 128 bit AES key. */
+        public static final int KEY_SIZE_128_BITS = 128;
+        /** Constant value for a 24 byte - 192 bit AES key. */
+        public static final int KEY_SIZE_192_BITS = 192;
+        /** Constant value for a 32 byte - 256 bit AES key. */
+        public static final int KEY_SIZE_256_BITS = 256;
     }
 }
