@@ -1,0 +1,41 @@
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <packaging>jar</packaging>
+
+    <parent>
+        <groupId>com.tcmj</groupId>
+        <artifactId>tcmj-parent</artifactId>
+        <version>2.15.12-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>crypto</artifactId>
+
+    <name>tcmj-crypto</name>
+    <description>
+        This java package provides simplified access to common encryption and decryption algorithms.
+        Features:
+        - AES alias 'Rijndael' encryption
+    </description>
+    <dependencies>
+        <dependency>
+            <groupId>com.tcmj</groupId>
+            <artifactId>commons</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
+
