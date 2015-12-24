@@ -57,8 +57,6 @@ public class AES {
 
     /** slf4j Logging Framework. */
     private static final Logger LOG = LoggerFactory.getLogger(AES.class);
-    /** Cipher transformation : AES */
-    private static final String CIPHER_TRANSFORM_AES = "AES";
     /** AES specification: Cipher Block Chaining Mode (CBC), Padding needed because of fixed block length */
     private static final String CIPHER_SPEC = "AES/CBC/PKCS5Padding";
     /** Key derivation specification - changing will break existing streams! */
@@ -67,6 +65,8 @@ public class AES {
     private static final String RND_NUM_ALGORITHM = "SHA1PRNG";
     /** Length of the Initialization Vector in bytes. 16 bytes = 128 bit. FIXED for AES! */
     private static final int FIXED_AES_BLOCK_SIZE = 16;
+    /** Cipher transformation : AES */
+    private static String CIPHER_TRANSFORM_AES = "AES";
     /** Key factory used to create key specification objects. */
     private final SecretKeyFactory factory;
     /** Main object used for en- and decoding. */
@@ -116,8 +116,8 @@ public class AES {
         } catch (IllegalStateException ise) {
             LOG.debug("Invalid key size '{}' ({})!", sizeToCheck, ise.getMessage());
             return false;
-        } catch (NoSuchAlgorithmException e) {
-            LOG.debug("Cannot determine max allowed key length because of missing provider for '{}'!", CIPHER_TRANSFORM_AES);
+        } catch (Exception e) {
+            LOG.debug("Cannot get max allowed key length for '{}': {}!", CIPHER_TRANSFORM_AES, e.getMessage());
             return false;
         }
     }

@@ -3,6 +3,8 @@ package com.tcmj.common.crypto;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.security.NoSuchAlgorithmException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
@@ -23,6 +25,16 @@ import static org.junit.Assert.assertThat;
  * <p>There's a extended debugging mode which can be activated using jvm parameter: 'java.security.debug'</p>
  */
 public class AESTest {
+
+    @Test
+    public void testDefaults() throws Exception {
+        assertThat("Coverage", new AES.Defaults(), notNullValue());
+        assertThat("Default iterations", AES.Defaults.DEFAULT_ITERATIONS, is(65536));
+        assertThat("Default 128 bit salt size", AES.Defaults.DEFAULT_SALT_SIZE, is(16));
+        assertThat("Default 128 bit AES key", AES.Defaults.KEY_SIZE_128_BITS, is(128));
+        assertThat("Default 192 bit AES key", AES.Defaults.KEY_SIZE_192_BITS, is(192));
+        assertThat("Default 256 bit AES key", AES.Defaults.KEY_SIZE_256_BITS, is(256));
+    }
 
     @Test
     public void testConstructorValid() throws Exception {
@@ -307,4 +319,19 @@ public class AESTest {
         aes.setPwdIterations(1558);
         assertThat("1558 password iterations", aes.getPwdIterations(), is(1558));
     }
+
+    @Test
+    public void testProviderNotAvailable() throws Exception {
+        //This test emulates if the AES provider is not available on the current installation by
+        //asking for null instead of 'AES' (internally it resets a private constant field value)
+        AES aes = new AES();
+        Field field = aes.getClass().getDeclaredField("CIPHER_TRANSFORM_AES");
+        field.setAccessible(true);
+        field.set(null, null); //set value to null
+        Method isKeySizeAllowed = aes.getClass().getDeclaredMethod("isKeySizeAllowed", new Class[]{int.class});
+        assertThat("Check null instead of AES key size", isKeySizeAllowed.invoke(aes, AES.Defaults.KEY_SIZE_128_BITS), is(false));
+        field.set(null, "AES"); //set value back to 'AES' !! totally necessary!
+    }
+
+
 }
