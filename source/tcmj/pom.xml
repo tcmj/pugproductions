@@ -1,14 +1,26 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
+    <packaging>pom</packaging>
+
     <groupId>com.tcmj</groupId>
     <artifactId>tcmj-parent</artifactId>
-    <version>216.1</version>
-    <packaging>pom</packaging>
-    <name>tcmj-parent</name>
-    <url>http://www.tcmj.de</url>
+
+    <version>2.15.12-SNAPSHOT</version>
+
+    <modules>
+        <module>commons</module>
+        <module>crypto</module>
+    </modules>
+
+    <name>tcmj-parent-pom</name>
     <description>
-        Parent pom for all tcmj java projects
+        Parent pom for all tcmj java projects.
+        The version number will be inherited to all sub modules
+
+        Maven-Cheat-Sheet:
+        - Build the parent pom only (without all sub modules!)
+        mvn --non-recursive clean install
 
         Release:
         1. Prepare for a clean release : mvn -Prelease clean install
@@ -17,9 +29,7 @@
         : mvn release:perform
 
     </description>
-    <modules>
-        <module>commons-basic</module>
-    </modules>
+    <url>http://www.tcmj.de</url>
     <developers>
         <developer>
             <id>tcmj</id>
@@ -99,6 +109,9 @@
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.18.1</version>
+                <configuration>
+                    <argLine>-Dorg.slf4j.simpleLogger.defaultLogLevel=debug</argLine>
+                </configuration>
             </plugin>
             <plugin>
                 <artifactId>maven-release-plugin</artifactId>
@@ -114,8 +127,8 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>com.tcmj.common</groupId>
-                <artifactId>commons-basic</artifactId>
+                <groupId>com.tcmj</groupId>
+                <artifactId>commons</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -136,6 +149,11 @@
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
+                <version>${org.slf4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-simple</artifactId>
                 <version>${org.slf4j.version}</version>
             </dependency>
             <dependency>
