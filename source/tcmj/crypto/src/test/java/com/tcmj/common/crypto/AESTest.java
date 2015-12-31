@@ -18,6 +18,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -214,6 +215,18 @@ public class AESTest {
     }
 
     @Test
+    public void testEncryptWithoutMerge() throws Exception {
+        /* Pure AES Encryption without the final merge (key+salt+iv+data)... output is only the encrypted 'data' */
+        AES aes = new AES();
+        byte[] salt = DatatypeConverter.parseHexBinary("6C87628C44B009B69190651142F8E075");
+        byte[] iV = DatatypeConverter.parseHexBinary("B30B7F05409E0F1308DDCAB27F75C9B6");
+        SecretKey key = aes.generateKey("t.c.m.j".toCharArray(), salt);
+        IvParameterSpec iv = new IvParameterSpec(iV);
+        byte[] encrypted = aes.encrypt(key, iv, "Encrypt".getBytes());
+        assertThat("AES.encrypt(Key, IV, CipherData)", DatatypeConverter.printHexBinary(encrypted), equalTo("BF58EC6D318837E47FB764DD5E6291E8"));
+    }
+
+    @Test
     public void testEncryptAndMerge() throws Exception {
         /* same input parameters produce always same output parameters!*/
         AES aes = new AES();
@@ -331,6 +344,30 @@ public class AESTest {
         Method isKeySizeAllowed = aes.getClass().getDeclaredMethod("isKeySizeAllowed", new Class[]{int.class});
         assertThat("Check null instead of AES key size", isKeySizeAllowed.invoke(aes, AES.Defaults.KEY_SIZE_128_BITS), is(false));
         field.set(null, "AES"); //set value back to 'AES' !! totally necessary!
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testWrongSaltSizeUsage() throws Exception {
+        //This test initialises the AES object with the default salt size (16 bytes)
+        AES encryptor = new AES();
+        //trying to use a key of another salt size an exception should raise
+        byte[] salt = AES.generateSalt(32);
+        SecretKey key = encryptor.generateKey("12345".toCharArray(), salt); //<< Exception!
+        assertThat("This line should not been reached!", key, nullValue());
+    }
+
+    @Test(expected = javax.crypto.BadPaddingException.class)
+    public void testDifferentBlockSizeUsage() throws Exception {
+        AES encryptor128 = new AES(AES.Defaults.KEY_SIZE_128_BITS, AES.Defaults.DEFAULT_SALT_SIZE, AES.Defaults.DEFAULT_ITERATIONS);
+        byte[] data2Encrypt = "Feistel and Coppersmith rule. Sixteen rounds and one hell of an avalanche!".getBytes();
+        char[] password = "whatever".toCharArray(); //passwords should be held in character arrays, not String's!
+        byte[] salt = encryptor128.generateSalt();
+        SecretKey key = encryptor128.generateKey(password, salt);
+        byte[] encryptedA = encryptor128.encryptAndMerge(key, salt, data2Encrypt);
+        Crypto.removeCryptographyRestrictions();
+        AES decryptor192 = new AES(AES.Defaults.KEY_SIZE_192_BITS, AES.Defaults.DEFAULT_SALT_SIZE, AES.Defaults.DEFAULT_ITERATIONS);
+        byte[] decrypted = decryptor192.decryptMergedData(password, encryptedA);
+        assertThat("It should not be possible to encrypt with 128 and decrypt with 192 bit mode!", decrypted, not(equalTo(data2Encrypt)));
     }
 
 

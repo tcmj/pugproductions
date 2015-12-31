@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
+import javax.xml.bind.DatatypeConverter;
 import com.tcmj.common.text.RandomStrings;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.StopWatch;
@@ -19,13 +20,14 @@ import static org.junit.Assert.assertThat;
 
 
 /**
- * Usage of class {@link AES }
+ * Usage of class {@link com.tcmj.common.crypto.AES }
+ * <pThe benefit of the AES class is the merging function which simplifies handling of the key, salt, initialisation vector and the encrypted data.</p>
  * <p>There's a extended debugging mode which can be activated using jvm parameter: 'java.security.debug'</p>
  */
 public class AESUsage {
 
     /** Helper method to test if input data is the same after encryption - decryption. */
-    private static void encryptDecrpyt(String text) throws Exception {
+    private static void encryptDecrypt(String text) throws Exception {
         char[] password = "avzh5F3§v bfh%ASt35!".toCharArray();
         AES pbe = new AES();
         byte[] salt = pbe.generateSalt();
@@ -34,80 +36,173 @@ public class AESUsage {
         assertThat("Equality Problem for: " + text, result, equalTo(text));
     }
 
-    /** Simple example to encryptAndMerge and decrypt some data. */
+    /**
+     * Simple example which can be used to encrypt and decrypt some data.
+     * <p>Steps:
+     * <ol>
+     * <li>Creation of a aes key object</li>
+     * <li>The data encryption process (producing merged data)</li>
+     * <li>Simplified decryption of the previously data</li>
+     * </ol></p>
+     * <p>It is only necessary to keep the password secret and know the initial parameters (default values using the empty constructor of the AES class)!</p>
+     * <p>Defaults are AES in 128 bit mode using 65536 password iterations at key generation</p>
+     */
     @Test
     public void normalUsage() throws Exception {
-        //we want to encryptAndMerge some data....
-        byte[] data2Encrypt = "dear diary, yesterday i killed a fly!".getBytes("UTF-8");
-        char[] password = "aG§s5Srt234!MyPassword!!".toCharArray(); //passwords should be held in character arrays, not String's
+        //we want to encrypt following data....we can encrypt anything which can be converted to a byte array
+        byte[] data2Encrypt = "This is our secret data which can be any bytes we want to encrypt!".getBytes();
+        char[] password = "aG§s5 Srt234!MyP assw0rd!!".toCharArray(); //passwords should be held in character arrays, not String's!
 
-        //start encryption by creating an AES object...
+        //we start by creating an AES object...(the empty constructor is defaulting to some initial parameters, eg. 128 bit mode)
         AES encryptor = new AES();
-        //first we need a salt... we choose to generate a new random one (but we also can use any existing)
+        //first we need a salt... we choose to generate a new random one
         byte[] salt = encryptor.generateSalt();
-        //next we create the AES key by using the password and salt (this step is the same for en- and decrpytion)
+        //next we create our AES key object using our secret password and the previously created salt
         SecretKey key = encryptor.generateKey(password, salt);
 
-        //Now we can apply encryption ... by creating a new IV (initialisation vector)
-        byte[] encryptedA = encryptor.encryptAndMerge(key, salt, data2Encrypt); //keep in mind that we can also choose an existing IV
+        //apply encryption producing extended cipher data
+        byte[] encryptedA = encryptor.encryptAndMerge(key, salt, data2Encrypt);
 
-        //the simplest way to decrypt our data is:
-        AES decryptor = new AES(); //(even we could use the same AES object for encryption and decryption)
+        //apply decryption
+        AES decryptor = new AES(); //(we simulate a separate session and use NOT the same AES object for encryption and decryption)
         byte[] decrypted = decryptor.decryptMergedData(password, encryptedA);
         //we only have to convert our byte array back to String:
-        System.out.println(new String(decrypted, "UTF-8"));
+        System.out.println("Data: '" + new String(decrypted) + "'");
 
-        //and heres the proof:
+        //proof:
         assertThat(decrypted, equalTo(data2Encrypt));
     }
 
-    /** Extended example to encryptAndMerge and decrypt with customized values. */
+    /**
+     * Extended example to encrypt and decrypt with a bunch of customized values.
+     * <p>We want:
+     * <ul>
+     * <li>AES 256 bit which usually assumes the installation of JCE</li>
+     * <li>We some larger data to en-/decrypt, because we can</li>
+     * <li>A predefined value of 100 password iterations at key generation</li>
+     * <li>A predefined salt size of 32 bytes (twice the size of the default)</li>
+     * <li>The default handling of the IV - a random one will be created (just to mention the initialisation vector)</li>
+     * </ul></p>
+     * <p>Steps:
+     * <ol>
+     * <li>Unlocking the 256 bit mode {@link Crypto#removeCryptographyRestrictions()}</li>
+     * <li>Creation of a key object</li>
+     * <li>The data encryption process (producing merged data)</li>
+     * <li>Simplified decryption of the previously data</li>
+     * </ol></p>
+     * <p>It is only necessary to keep the password secret and know the initial parameters (customized values set by the constructor of the AES class)!</p>
+     */
     @Test
     public void extendedUsage() throws Exception {
 
-        //We need the JCE installation to unlock AES 256 !
+        //Usually we need the JCE installation to unlock AES 256 ! Bypassing the installation we can use our Crypt class:
         Crypto.removeCryptographyRestrictions();
 
-        byte[] data2Encrypt = ("Much much much much much much much much much much much much much much much much " +
-                "much much much much much much much much much much much much much much much much much much much much " +
-                "much much much much much much much much much much much much more data this Time!").getBytes("UTF-8");
-        char[] password = "Ultra3%§Long325PASSWORD§$%%$&&%$&$%&jfakldijkvjw343243-32j4k32j4j.43j!!!!!!!!".toCharArray();
+        //Our large test data and high security password:
+        String ourData = StringUtils.repeat("I will not use german umlauts like 'ö' again!", System.lineSeparator(), 20000);
+        byte[] data2Encrypt = ourData.getBytes();
+        char[] password = "xq{3$s!2!C4,/^FsyPTEGw@-RR{pT)ZSPF'7`K,]>yA(P*gWJ,;G=!<HdJ{Z&6s>rf49tnQ!<]<cNS`Z@,:NuG\\F*6A*v>,.KCTp!G`N>Nwjr^-6^!FE3MGLY^GFG.N\\L\"RG)-fMmQ~mC>ZG\\HWceK!`mfYQue%ZL^!~Dd)bfx?s+<59PnGKh3&*~\\G#=U?f$+Ww*?Vv<MGnB$N@[.ayCWn5;-WY,\\87@;7}:5q:f)yA`tJ!Ba3Aj=%URg(Rj-}y".toCharArray();
+        System.out.println("We have        : " + ourData.length() + " letters in " + data2Encrypt.length + " bytes! And a powerful password of " + password.length + " chars!");
 
-        int iterations = 100;
+        //we want to use 100 password iterations for our key and a custom-sized salt of 32 bytes
+        final int iterations = 100;
+        final int saltSizeInBytes = 32;
 
-        AES encryptor = new AES(AES.Defaults.KEY_SIZE_256_BITS, AES.Defaults.DEFAULT_SALT_SIZE * 2, iterations);
-        System.out.println("New encryptor object created: " + encryptor);
+        //now we can do the initialisation of our AES object:
+        AES encryptor = new AES(AES.Defaults.KEY_SIZE_256_BITS, saltSizeInBytes, iterations);
+        System.out.println("AES object     : " + encryptor);
 
-        byte[] salt = new byte[AES.Defaults.DEFAULT_SALT_SIZE * 2];
-        System.arraycopy(encryptor.generateSalt(), 0, salt, 0, AES.Defaults.DEFAULT_SALT_SIZE);
-        System.arraycopy(encryptor.generateSalt(), 0, salt, AES.Defaults.DEFAULT_SALT_SIZE, AES.Defaults.DEFAULT_SALT_SIZE);
-        System.out.println("Salt           : " + Crypto.toHex(salt) + " length: " + salt.length + " byte");
+        //we have to provide the 32 byte salt (random or fixed ...its our decision)
+        byte[] salt = AES.generateSalt(32);
+        System.out.println("Salt           : " + DatatypeConverter.printHexBinary(salt));
 
+        //having salt we can generate the key:
         SecretKey key = encryptor.generateKey(password, salt);
-        System.out.println("Key            : " + Crypto.toHex(key.getEncoded()) + " Algo: " + key.getAlgorithm());
+        System.out.println("Key            : " + DatatypeConverter.printHexBinary(key.getEncoded()));
 
+        //apply encryption producing a byte array containing salt+iv+data
         byte[] encrypted = encryptor.encryptAndMerge(key, salt, data2Encrypt);
-        System.out.println("Encryption     : " + Crypto.toHex(encrypted));
+        System.out.println("Encryption     : " + StringUtils.abbreviate(DatatypeConverter.printHexBinary(encrypted), 120));
 
-        //Now we start again to simulate another jvm at another time in another world
-        AES decryptor = new AES(AES.Defaults.KEY_SIZE_256_BITS, AES.Defaults.DEFAULT_SALT_SIZE * 2, iterations);
-        byte[] theSalt = decryptor.extractSalt(encrypted);
-        byte[] theIV = decryptor.extractIV(encrypted);
-        byte[] theCipherText = decryptor.extractEncryptedData(encrypted);
-        System.out.println("Salt           : " + Crypto.toHex(theSalt));
-        System.out.println("IV             : " + Crypto.toHex(theIV));
-        System.out.println("CipherText     : " + Crypto.toHex(theCipherText));
+        //starting over again simulating another jvm in another world at another time...
+        AES decryptor = new AES(AES.Defaults.KEY_SIZE_256_BITS, saltSizeInBytes, iterations); //<-- important initial values!
 
-        System.out.println("New decryptor object created: " + decryptor);
-        byte[] decrypted = decryptor.decrypt(password, theSalt, theIV, theCipherText);
-        System.out.println("DeCryption: " + Crypto.toHex(decrypted));
-        System.out.println("DeCryption length: " + decrypted.length);
+        //apply the magically easy decryption function which does all the hard job:
+        byte[] decrypted = decryptor.decryptMergedData(password, encrypted);
+        System.out.println("Encryption     : " + StringUtils.abbreviate(new String(decrypted), 48));
 
-        //we only have to convert our byte array back to String:
-        System.out.println(new String(decrypted, "UTF-8"));
+        //check the result:
+        assertThat("we want exactly the same bytes back!", decrypted, equalTo(data2Encrypt));
+        //for security reason it is only allowed put the salt and the iv in public - neither the key nor the password!
+        assertThat("The key must not be in the output data!", StringUtils.containsIgnoreCase(DatatypeConverter.printHexBinary(encrypted), DatatypeConverter.printHexBinary(key.getEncoded())), is(false));
+        assertThat("The password must not be in the output data!", StringUtils.containsIgnoreCase(DatatypeConverter.printHexBinary(encrypted), DatatypeConverter.printHexBinary(new String(password).getBytes())), is(false));
 
-        //and heres the proof:
-        assertThat(decrypted, equalTo(data2Encrypt));
+    }
+
+    /**
+     * Extended example to encrypt and decrypt with fixed values.
+     * <p>We want:
+     * <ul>
+     * <li>AES 192 bit</li>
+     * <li>A predefined value of 1234 password iterations at key generation</li>
+     * <li>A predefined and fixed salt value</li>
+     * <li>A predefined and fixed initialisation vector (IV)</li>
+     * </ul></p>
+     * <p>Steps:
+     * <ol>
+     * <li>Unlocking the 256 bit mode {@link Crypto#removeCryptographyRestrictions()}</li>
+     * <li>Creation of a key object</li>
+     * <li>The data encryption process (producing merged data)</li>
+     * <li>Simplified decryption of the previously data</li>
+     * </ol></p>
+     * <p>It is only necessary to keep the password secret and know the initial parameters (customized values set by the constructor of the AES class)!</p>
+     */
+    @Test
+    public void fixedValueUsage() throws Exception {
+
+        //Usually we need the JCE installation to unlock AES 256 ! Bypassing the installation we can use our Crypt class:
+        Crypto.removeCryptographyRestrictions();
+
+        //Our test data and high security password:
+        byte[] data2Encrypt = "Encryption works. Properly implemented strong crypto systems are one of the few things that you can rely on. Unfortunately, endpoint security is so terrifically weak that NSA can frequently find ways around it.".getBytes();
+        char[] password = "Fh^#2LMSBKC42J4pRf@FTZt#Kz4HBJ".toCharArray();
+
+        //we want to use 1234 password iterations for our key and the default salt size of 16 bytes
+        final int iterations = 1234;
+
+        //do the initialisation of our AES object:
+        AES encryptor = new AES(AES.Defaults.KEY_SIZE_192_BITS, AES.Defaults.DEFAULT_SALT_SIZE, iterations);
+        System.out.println("AES object     : " + encryptor);
+
+        //we have to provide the fixed salt
+        byte[] salt = DatatypeConverter.parseHexBinary("0741DFD00B7C1A186A50B4D9DD0C3FE2");
+
+        //use a custom Initialisation Vector (in case that the iv is predefined)
+        byte[] iv = DatatypeConverter.parseHexBinary("18FB095986F4AB37CCF77BF3C4C8A3D2");
+        IvParameterSpec iV = new IvParameterSpec(iv);
+
+        //having salt we can generate the key:
+        SecretKey key = encryptor.generateKey(password, salt);
+        System.out.println("Key            : " + DatatypeConverter.printHexBinary(key.getEncoded()));
+
+        //apply encryption producing a byte array containing salt+iv+data
+        byte[] encrypted = encryptor.encryptAndMerge(key, salt, iV, data2Encrypt);
+        System.out.println("Encryption     : " + DatatypeConverter.printHexBinary(encrypted));
+
+        //starting over again simulating another jvm in another world at another time...
+        AES decryptor = new AES(AES.Defaults.KEY_SIZE_192_BITS, AES.Defaults.DEFAULT_SALT_SIZE, iterations); //<-- important initial values!
+
+        //apply the magically easy decryption function which does all the hard job:
+        byte[] decrypted = decryptor.decryptMergedData(password, encrypted);
+        System.out.println("Encryption     : " + new String(decrypted));
+
+        //check the result:
+        assertThat("we want exactly the same bytes back!", decrypted, equalTo(data2Encrypt));
+        assertThat("The key must not be in the output data!", StringUtils.containsIgnoreCase(DatatypeConverter.printHexBinary(encrypted), DatatypeConverter.printHexBinary(key.getEncoded())), is(false));
+        assertThat("The salt must be in the output data!", StringUtils.containsIgnoreCase(DatatypeConverter.printHexBinary(encrypted), "0741DFD00B7C1A186A50B4D9DD0C3FE2"), is(true));
+        assertThat("The iv must be in the output data!", StringUtils.containsIgnoreCase(DatatypeConverter.printHexBinary(encrypted), "18FB095986F4AB37CCF77BF3C4C8A3D2"), is(true));
+        assertThat("Whole merged data must be the same forever!", DatatypeConverter.printHexBinary(encrypted), equalTo("0741DFD00B7C1A186A50B4D9DD0C3FE218FB095986F4AB37CCF77BF3C4C8A3D25E379F1970203858D84402663B29788F231215A0FD2B82902D475A92F14AA2121858DC01ECE0CB623B218460285A3A680462D73E4B30E6BF919A7CDF02D2C1308DC498B4DA08E159A27D0F4933D8F0A1005B0148BB50EA3ADF7554D1611B8ED89C4068C66A50BD5F86D2020B7F26E3468A491709C33DC03D7854CAD4861FC4FFA6298FBB35698F4AC6DE72DC012205D3290635BFC4B42848A99E0F3A0B2F04ABFE081F45BA6CA242C7A4E3AD6F3BDD2193CBAA68FF7AC0D552B1CC878FA65E1A59314C5055674B4E7E67C8DC7CAB991D958F33FBCC8CA415973FD318EA0892B1"));
+
     }
 
     @Test
@@ -125,13 +220,13 @@ public class AESUsage {
 
     /** We want to test some special cases to ensure that we get exactly the same after decrypting our encrypted data. */
     @Test
-    public void encryptDecrpyt() throws Exception {
-        encryptDecrpyt("a");    //single lower case char should stay the same
-        encryptDecrpyt("A");    //..same test with a single upper case char
-        encryptDecrpyt("Just some random Text and Numbers 1 2 3 4");
-        encryptDecrpyt("AVeryLongText " + StringUtils.repeat(new RandomStrings().randomWordCapitalized(500), 100));
-        encryptDecrpyt("Special Characters: !\"§$%&/()=?`´ 28°C <> || ;,:.-_ *' ÖÜÄöüä~");
-        encryptDecrpyt("multiline\r\nmultiline\r\nmultiline\nmultiline\n");
+    public void encryptDecrypt() throws Exception {
+        encryptDecrypt("a");    //single lower case char should stay the same
+        encryptDecrypt("A");    //..same test with a single upper case char
+        encryptDecrypt("Just some random Text and Numbers 1 2 3 4");
+        encryptDecrypt("AVeryLongText " + StringUtils.repeat(new RandomStrings().randomWordCapitalized(500), 100));
+        encryptDecrypt("Special Characters: !\"§$%&/()=?`´ 28°C <> || ;,:.-_ *' ÖÜÄöüä~");
+        encryptDecrypt("multiline\r\nmultiline\r\nmultiline\nmultiline\n");
     }
 
     @Test
@@ -182,7 +277,7 @@ public class AESUsage {
         for (int i = 1; i <= loops; i++) {
             String word = rand.randomWordCapitalized(100);
             byte[] encrypt = aes.encryptAndMerge(crypKey, salt, word.getBytes());
-            String hex = Crypto.toHex(encrypt);
+            String hex = DatatypeConverter.printHexBinary(encrypt);
             datastore.put(word, hex);
         }
         watch.stop();
@@ -245,11 +340,11 @@ public class AESUsage {
         IvParameterSpec iv = AES.generateIV();
         byte[] salt = aes.generateSalt();
         SecretKey key = aes.generateKey(password, salt);
-        System.out.println("Encrypting with same key: " + Crypto.toHex(key.getEncoded()) + " and salt: " + Crypto.toHex(salt) + " and iv: " + Crypto.toHex(iv.getIV()));
+        System.out.println("Encrypting with same key: " + DatatypeConverter.printHexBinary(key.getEncoded()) + " and salt: " + DatatypeConverter.printHexBinary(salt) + " and iv: " + DatatypeConverter.printHexBinary(iv.getIV()));
         for (int i = 1; i <= 5; i++) {
             byte[] encrypted = aes.encryptAndMerge(key, salt, iv, plain.getBytes());
             String plainAgain = new String(aes.decryptMergedData(password, encrypted));
-            System.out.println(Crypto.toHex(encrypted) + " Plain: " + plainAgain);
+            System.out.println(DatatypeConverter.printHexBinary(encrypted) + " Plain: " + plainAgain);
             assertThat(plainAgain, equalTo(plain));
         }
     }

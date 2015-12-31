@@ -3,7 +3,6 @@ package com.tcmj.common.crypto;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.AlgorithmParameters;
-import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
@@ -45,7 +44,7 @@ import static com.tcmj.common.crypto.AES.Defaults.KEY_SIZE_128_BITS;
  * <li>The key will be created using a password and a salt and a predefined number of iterations</li>
  * <li>Encryption also needs a so called initialisation vector (IV)</li>
  * <li>The IV will be created randomly or you can set it as a parameter on the encryptAndMerge method</li>
- * <li>The result of encryption is a byte array consisting of the salt, iv and the cipherbytes</li>
+ * <li>The result of encryption is a byte array consisting of the salt, iv and the cipher bytes</li>
  * <li>The recipient needs to know the password, the salt, the amount of iterations, the IV and of course the encrypted bytes</li>
  * <li>The recipient generates the key in exactly the same way using the same password, salt and iteration amount</li>
  * </ul>
@@ -169,7 +168,7 @@ public class AES {
         // read data from input into buffer, encryptAndMerge and write to output
         byte[] buffer = new byte[1024];
         int numRead;
-        byte[] encrypted = null;
+        byte[] encrypted;
         while ((numRead = input.read(buffer)) > 0) {
             encrypted = pbe.cipher.update(buffer, 0, numRead);
             if (encrypted != null) {
@@ -218,11 +217,11 @@ public class AES {
      * The encryption will be performed with a new salt and a new iv.
      * @return base64 string containing salt, iv and encrypted data.
      */
-    public static String encrypt2Base64(char[] password, byte[] toEncrpyt) throws Exception {
+    public static String encrypt2Base64(char[] password, byte[] toEncrypt) throws Exception {
         AES pbe = new AES();
         byte[] salt = pbe.generateSalt();
         SecretKey cryptKey = pbe.generateKey(password, salt);
-        byte[] encrypted = pbe.encryptAndMerge(cryptKey, salt, toEncrpyt);
+        byte[] encrypted = pbe.encryptAndMerge(cryptKey, salt, toEncrypt);
         return Crypto.Base64.encode2String(encrypted);
     }
 
@@ -272,7 +271,7 @@ public class AES {
      * @param salt the salt bytes used for the key
      * @return a java key object needed for AES encryption and decryption
      */
-    public SecretKey generateKey(char[] password, byte[] salt) throws NoSuchAlgorithmException, InvalidKeySpecException, NoSuchPaddingException {
+    public SecretKey generateKey(char[] password, byte[] salt) throws InvalidKeySpecException {
         return generateKey(password, salt, getPwdIterations());
     }
 
@@ -284,22 +283,21 @@ public class AES {
      * @param iterations the amount of iterations which will be applied to the key
      * @return a java key object needed for AES encryption and decryption
      */
-    public SecretKey generateKey(char[] password, byte[] salt, int iterations) throws NoSuchAlgorithmException, InvalidKeySpecException, NoSuchPaddingException {
+    public SecretKey generateKey(char[] password, byte[] salt, int iterations) throws InvalidKeySpecException {
         Objects.notNull(password, "Parameter 'password' may not be null!");
         Objects.notNull(salt, "Parameter 'salt' may not be null!");
         Objects.ensure(salt.length == getSaltSize(), "AES object has been set to a salt size of {}! Your salt size ({}) does not match!", getSaltSize(), salt.length);
         //Generating 128/192/256-bit key using 16-byte salt doing n iterations
         KeySpec spec = new PBEKeySpec(password, salt, iterations, getKeySize());
         byte[] keyBytes = factory.generateSecret(spec).getEncoded();
-        SecretKey secretKey = new SecretKeySpec(keyBytes, CIPHER_TRANSFORM_AES);
-        return secretKey;
+        return new SecretKeySpec(keyBytes, CIPHER_TRANSFORM_AES);
     }
 
     /**
      * Retrieves the initialisation vector from the cipher object.
      * @return params.getParameterSpec(IvParameterSpec.class).getIV();
      */
-    public byte[] getInitialisationVector() throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, InvalidParameterSpecException {
+    public byte[] getInitialisationVector() throws InvalidParameterSpecException {
         if (cipher.getIV() != null) {
             return cipher.getIV(); //this does only work if a encryption has been done!
         } else {
@@ -347,8 +345,7 @@ public class AES {
      */
     public byte[] decrypt(SecretKey key, byte[] iv, byte[] cipherdata) throws Exception {
         cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(iv));
-        byte[] decrypted = cipher.doFinal(cipherdata);
-        return decrypted;
+        return cipher.doFinal(cipherdata);
     }
 
     /**
