@@ -1,5 +1,5 @@
 # pugproductions
-Professional Open Source Java Project Management Library
+Professional Open Source Java Library
 
 ## commons
 ### collections - ResourceBundleMerger
