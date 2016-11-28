@@ -32,7 +32,6 @@ public class AESUsage {
         AES pbe = new AES();
         byte[] salt = pbe.generateSalt();
         String result = new String(pbe.decryptMergedData(password, pbe.encryptAndMerge(pbe.generateKey(password, salt), salt, text.getBytes("UTF-8"))), "UTF-8");
-        System.out.println(result);
         assertThat("Equality Problem for: " + text, result, equalTo(text));
     }
 
@@ -205,12 +204,15 @@ public class AESUsage {
 
     }
 
+    /**
+     * How to unlock AES 192 and AES 256 bit en-/decryption.
+     */
     @Test
     public void enableAES256BitKeySize() {
         //initially we cannot use 256 bit as key size:
         assertThat("Check AES key size 256", AES.isKeySizeAllowed(AES.Defaults.KEY_SIZE_256_BITS), is(false)); //valid but locked
 
-        //Extended Java installation (JCE jurisdiction policy files)
+        //Bypassing the Extended Java installation (JCE jurisdiction policy files) programmatically
         Crypto.removeCryptographyRestrictions();
 
         //..now we can also use 192 and 256 bit key size for AES
@@ -348,5 +350,47 @@ public class AESUsage {
             assertThat(plainAgain, equalTo(plain));
         }
     }
+
+    /**
+     * You can also work with completely empty password and/or data to encrypt.
+     */
+    @Test
+    public void testEmptyPasswordAndCipherDataEnDecryption() throws Exception {
+
+        //we want to encrypt no data .. with an empty password
+        String ourData = "";
+        char[] password = "".toCharArray(); //passwords should be held in character arrays, not String's!
+        byte[] data2Encrypt = ourData.getBytes();
+        System.out.println("We have        : " + ourData.length() + " characters in " + data2Encrypt.length + " bytes! And a password of " + password.length + " chars!");
+
+        AES encryptor = new AES(AES.Defaults.KEY_SIZE_128_BITS, AES.Defaults.DEFAULT_SALT_SIZE, 1); //1 byte salt and 1 pwd iteration
+        byte[] salt = new byte[]{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+        byte[] iv = new byte[]{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+        SecretKey key = encryptor.generateKey(password, salt);
+
+        byte[] encrypted = encryptor.encryptAndMerge(key, salt, new IvParameterSpec(iv), data2Encrypt);
+
+        AES decryptor = new AES(AES.Defaults.KEY_SIZE_128_BITS, AES.Defaults.DEFAULT_SALT_SIZE, 1);
+        byte[] theSalt = decryptor.extractSalt(encrypted);
+        byte[] theIV = decryptor.extractIV(encrypted);
+        byte[] theCipherText = decryptor.extractEncryptedData(encrypted);
+        System.out.println("Salt           : " + DatatypeConverter.printHexBinary(theSalt));
+        System.out.println("Key            : " + DatatypeConverter.printHexBinary(key.getEncoded()));
+        System.out.println("IV             : " + DatatypeConverter.printHexBinary(theIV));
+        System.out.println("CipherText     : " + DatatypeConverter.printHexBinary(theCipherText));
+        System.out.println("MergedData     : " + DatatypeConverter.printHexBinary(encrypted));
+
+        byte[] decrypted = decryptor.decrypt(password, theSalt, theIV, theCipherText);
+        System.out.println("PlainTextLength: " + decrypted.length);
+
+        //we only have to convert our byte array back to String:
+        System.out.println(new String(decrypted, "UTF-8"));
+
+        //and the proof:
+        assertThat(decrypted, equalTo(data2Encrypt));
+        assertThat("Length should be zero", decrypted.length, is(0));
+    }
+
+
 
 }
