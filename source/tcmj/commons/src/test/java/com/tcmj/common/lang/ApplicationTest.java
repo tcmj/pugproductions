@@ -1,14 +1,17 @@
 package com.tcmj.common.lang;
 
-import org.junit.BeforeClass;
+import com.google.common.eventbus.EventBus;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.junit.Assert.assertNotNull;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.junit.Assert.assertThat;
 
 /**
- * Application
+ * Test of com.tcmj.common.lang.Application
  */
 public class ApplicationTest {
 
@@ -16,92 +19,73 @@ public class ApplicationTest {
     private static final transient Logger LOG = LoggerFactory.getLogger(ApplicationTest.class);
 
     public ApplicationTest() {
+        // System.getProperties().entrySet().forEach(entry -> System.out.println("key=" + entry.getKey() + " \t = " + entry.getValue()));
     }
 
-    @BeforeClass
-    public static void setUpClass() throws Exception {
-        System.getProperties().entrySet().forEach(entry -> {
-            System.out.println("key=" + entry.getKey() + " \t = " + entry.getValue());
-        });
-    }
-
-    /**
-     * Test of getApplicationTitle method, of class Application.
-     */
     @Test
     public void testGetApplicationTitle() {
         Class context = getClass();
         String result = Application.get(context).getApplicationTitle();
         LOG.info("getApplicationTitle: '{}'", result);
-        assertNotNull(result);
+        assertThat("getApplicationTitle()", result, notNullValue(String.class));
+        assertThat("getApplicationTitle(Class)", Application.getApplicationTitle(context), notNullValue(String.class));
     }
 
-    /**
-     * Test of getApplicationVersion method, of class Application.
-     */
     @Test
     public void testGetApplicationVersion() {
         Class context = getClass();
         String result = Application.get(context).getApplicationVersion();
         LOG.info("getApplicationVersion: '{}'", result);
-        assertNotNull(result);
+        assertThat("getApplicationVersion()", result, notNullValue(String.class));
+        assertThat("getApplicationVersion(Class)", Application.getApplicationVersion(context), notNullValue(String.class));
     }
 
-    /**
-     * Test of getApplicationVendor method, of class Application.
-     */
     @Test
     public void testGetApplicationVendor() {
         Class context = getClass();
         String result = Application.get(context).getApplicationVendor();
         LOG.info("getApplicationVendor: '{}'", result);
-        assertNotNull(result);
+        assertThat("getApplicationVendor()", result, notNullValue(String.class));
+        assertThat("getApplicationVendor(Class)", Application.getApplicationVendor(Test.class), equalTo("JUnit"));
     }
 
-    /**
-     * <p>
-     * Test of getJavaVersionString method, of class Application.
-     */
     @Test
-    public void testGetSystemStrings() {
-        String result = Application.get(getClass()).getJavaVersionString();
+    public void testGetJavaVersionString() {
+        String result = Application.getJavaVersionString();
         LOG.info("getJavaVersionString: '{}'", result);
-        assertNotNull(result);
-
-        result = Application.get(getClass()).getJavaEncodingInfos();
-        LOG.info("getJavaEncodingInfos: '{}'", result);
-        assertNotNull(result);
-
-        result = Application.get(getClass()).getJavaTimezone();
-        LOG.info("getJavaTimezone: '{}'", result);
-        assertNotNull(result);
-
-        result = Application.get(getClass()).getJavaVmName();
-        LOG.info("getJavaVmName: '{}'", result);
-        assertNotNull(result);
-
-        result = Application.get(getClass()).getOsName();
-        LOG.info("getOsName: '{}'", result);
-        assertNotNull(result);
-
+        assertThat("JavaVersionString()", result, notNullValue(String.class));
     }
 
-    /**
-     * Test of getJavaClassVersion method, of class Application.
-     */
     @Test
-    public void testGetJavaClassVersion() {
-        Float result = Application.get(getClass()).getJavaClassVersion();
-        LOG.info("getJavaClassVersion: '{}'", result);
-        assertNotNull(result);
+    public void testGetJavaUserInfos() {
+        String result = Application.getJavaUserInfos();
+        LOG.info("getJavaUserInfos: '{}'", result);
+        assertThat("getJavaUserInfos()", result, notNullValue(String.class));
     }
-/**
-     * Test of getMaxMemory method, of class Application.
-     */
+
+    @Test
+    public void testGetOsNameAndVersion() {
+        String result = Application.getOsNameAndVersion();
+        LOG.info("getOsNameAndVersion:  '{}'", result);
+        assertThat("getOsNameAndVersion()", result, notNullValue(String.class));
+    }
+
     @Test
     public void testGetMaxMemory() {
-        String result = Application.get(getClass()).getMaxMemory();
+        String result = Application.getMaxMemory();
         LOG.info("getMaxMemory: '{}'", result);
-        assertNotNull(result);
+        assertThat("getMaxMemory()", result, notNullValue(String.class));
+    }
+
+    @Test
+    public void testGetMavenVersion() throws Exception {
+        String groupId = "com.google.guava";
+        String artifactId = "guava";
+        String result = Application.getMavenVersion(EventBus.class, groupId, artifactId);
+        LOG.info("getMavenVersion: '{}'", result);
+        assertThat("getMavenVersion(Class, String, String)", result, notNullValue(String.class));
+
+        assertThat("getMavenVersion(Class, String, String) - non existant",
+                Application.getMavenVersion(EventBus.class, "foo", "bar"), nullValue(String.class));
     }
 }
