@@ -6,10 +6,11 @@
     <parent>
         <groupId>com.tcmj</groupId>
         <artifactId>tcmj-parent</artifactId>
-        <version>2.15.12-SNAPSHOT</version>
+        <version>${tcmj.version}</version>
     </parent>
 
     <artifactId>crypto</artifactId>
+    <version>${tcmj.version}</version>
 
     <name>tcmj-crypto</name>
     <description>

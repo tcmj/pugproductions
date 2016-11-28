@@ -6,10 +6,11 @@
     <parent>
         <groupId>com.tcmj</groupId>
         <artifactId>tcmj-parent</artifactId>
-        <version>2.15.12-SNAPSHOT</version>
+        <version>${tcmj.version}</version>
     </parent>
 
     <artifactId>commons</artifactId>
+    <version>${tcmj.version}</version>
 
     <name>tcmj-commons</name>
     <description>
@@ -19,7 +20,15 @@
         Some Ideas/Todos:
         - Extend Application class and create a dummy manifest if none was available.
     </description>
-
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.tcmj</groupId>
+                <artifactId>tcmj-dependencies-bom</artifactId>
+                <version>2.16.12</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
