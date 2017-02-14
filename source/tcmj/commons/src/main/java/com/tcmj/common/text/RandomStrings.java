@@ -67,6 +67,16 @@ public class RandomStrings extends Random {
     }
 
     /**
+     * Returns a random int within the given min/max range.
+     * @param minInclusive smallest expecting value (inclusive)
+     * @param maxInclusive biggest expecting value (inclusive)
+     * @return a integer value <= or >= the given parameters
+     */
+    public int nextInt(int minInclusive, int maxInclusive) {
+        return nextInt((maxInclusive - minInclusive) + 1) + minInclusive;
+    }
+
+    /**
      * Gibt eine Hexadezimal-Zahl per Zufall zurueck.
      * @return Hexadezimalzahl
      */

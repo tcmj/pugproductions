@@ -2,8 +2,11 @@ package com.tcmj.common.text;
 
 import org.junit.Test;
 
+import static org.hamcrest.CoreMatchers.anyOf;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertThat;
 
 /**
  * RandomStringsTest.
@@ -11,9 +14,16 @@ import static org.junit.Assert.assertNotSame;
  */
 public class RandomStringsTest {
 
-    public RandomStringsTest() {
+    /**
+     * Test of nextInt(int,int) method, of class RandomStrings.
+     */
+    @Test
+    public void testNextIntWithMinMaxParams() {
+        assertThat(new RandomStrings(1).nextInt(3, 5), anyOf(is(3), is(4), is(5)));
+        assertThat(new RandomStrings(2).nextInt(3, 5), anyOf(is(3), is(4), is(5)));
+        assertThat(new RandomStrings(3).nextInt(3, 5), anyOf(is(3), is(4), is(5)));
+        System.out.println("nextInt(3,5): " + new RandomStrings().nextInt(3, 5));
     }
-
 
     /**
      * Test of nextHex method, of class RandomStrings.
